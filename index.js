@@ -28,35 +28,63 @@ app.get('/', (req, res) => {
 app.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
-
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
     }
-
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const newUser = await User.create({
       name: name,
       email: email,
       password: hashedPassword
     });
-
     res.status(201).json({
       id: newUser.id,
       name: newUser.name,
       email: newUser.email
     });
-
   } catch (error) {
     res.status(500).json({ message: 'Erro ao criar usuário', error: error.message });
   }
 });
 
 // =================================================================
+// NOVA ROTA DE LOGIN DE USUÁRIO (A PARTE QUE FALTAVA)
+// =================================================================
+app.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: 'E-mail e senha são obrigatórios.' });
+    }
+
+    const user = await User.findOne({ where: { email: email } });
+    if (!user) {
+      return res.status(404).json({ message: 'Usuário não encontrado.' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Senha inválida.' });
+    }
+
+    res.status(200).json({
+      message: 'Login bem-sucedido!',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Erro ao fazer login', error: error.message });
+  }
+});
+
+
+// =================================================================
 // 4. SINCRONIZAÇÃO COM BANCO E INICIALIZAÇÃO DO SERVIDOR
 // =================================================================
 
-// Função para sincronizar os models com o banco de dados
 async function syncDatabase() {
   try {
     await sequelize.sync({ force: false });
@@ -66,7 +94,6 @@ async function syncDatabase() {
   }
 }
 
-// Inicializa o servidor e sincroniza o banco de dados
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
   syncDatabase();
